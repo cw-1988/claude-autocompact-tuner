@@ -14,13 +14,17 @@ Zero dependencies, Node 22 or later, reads only local files.
 
 1. **`summarize.mjs`** condenses every transcript under `~/.claude/projects/` into one line per session (about 1 KB)
    in `~/.claude/autocompact-tuner/sessions.jsonl`. The line holds the context size of every API call, the compactions
-   (size before and after), the billed tokens, and the task type. Claude Code deletes transcripts after 30 days
-   (`cleanupPeriodDays`), but this history stays.
+   (size before and after, and what the next call wrote to cache), the billed tokens, and the task type. Claude Code
+   deletes transcripts after 30 days (`cleanupPeriodDays`), but this history stays.
 2. **`window.mjs`** replays each session at windows from 100k to 400k and prices it:
    - every call reads its context from cache (0.1×)
-   - every compaction reads the context once for the summary call, writes the summary as output (5×), writes the new
-     context to cache (2×), and adds the extra context Claude re-reads afterwards (2× write, then read on every call)
-   - summary size, the context right after a compaction, and the re-read amount are all measured from your sessions
+   - a compaction fires a margin below the window, as Claude Code does (a 250k window compacts at about 218k)
+   - every compaction reads the context once for the summary call, writes the summary as output (5×), has the next
+     call write the new context to cache (summary plus the files Claude Code re-attaches), and adds the extra context
+     Claude re-reads afterwards (written, then read on every call)
+   - summary size, the cache write after a compaction, the context right after it, the re-read amount and the margin
+     are all measured from your sessions. The margin needs to know which window was in force, so the tool keeps a
+     history of the window in `state.json`; until it has 10 auto compactions with a known window, it assumes 32k.
 
    It prints the best window and what it would save, overall and by task type.
 3. **`--auto`** (as a SessionStart hook) summarizes new transcripts on each session start. Once a week it checks the
@@ -94,7 +98,11 @@ need 40 sessions and 10 compactions, and change only for at least a 1% gain. It 
 
 - **Lost context**: each compaction drops detail, and a wrong turn afterwards costs more than the compaction did. The
   1% threshold keeps it from shrinking the window for small gains, but it doesn't price quality.
-- **Cold caches**: compacting after the cache expired costs more. That hits every window about the same.
+- **Cold caches**: after an idle gap longer than the cache TTL, the next call writes the whole context again. That
+  costs more with a bigger window, so leaving it out favours bigger windows. The session lines don't keep per-call
+  times, so it can't be replayed yet.
+- **Summary size per window**: the summary and the context after a compaction are measured at your current window
+  and assumed the same at every other one.
 - **Subagents** have their own context and are left out.
 - **Per-task windows**: Claude Code reads the window only at session start, so it can't follow the task inside a
   session. In our data every task type's best window was within 30k of the overall one.

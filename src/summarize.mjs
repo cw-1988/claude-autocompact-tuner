@@ -8,6 +8,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { projectsDir, dataDir, sessionsFile, tasksFile } from './paths.mjs';
 
+const VERSION = 2; // rows of an older version are summarized again while their transcript still exists
+
 // Optional task rules: [{ "type": "art", "match": "Art[\\\\/]" }, ...]. A session gets the type
 // most of its tool calls match (paths and commands); without rules or matches it is "other".
 function loadTasks() {
@@ -19,7 +21,7 @@ function summarize(file, id, project, tasks) {
   const seen = new Set();
   const ctx = [], compactions = [], counts = {};
   const cost = { input: 0, write1h: 0, write5m: 0, read: 0, output: 0 };
-  let start = null, end = null, model = null;
+  let start = null, end = null, model = null, open = null;
   for (const line of readFileSync(file, 'utf8').split('\n')) {
     if (!line) continue;
     let e;
@@ -28,7 +30,8 @@ function summarize(file, id, project, tasks) {
     if (e.timestamp) { start ??= e.timestamp; end = e.timestamp; }
     if (e.type === 'system' && e.subtype === 'compact_boundary' && e.compactMetadata) {
       const m = e.compactMetadata;
-      compactions.push({ at: ctx.length, pre: m.preTokens ?? 0, post: m.postTokens ?? 0, trigger: m.trigger ?? '' });
+      open = { at: ctx.length, pre: m.preTokens ?? 0, post: m.postTokens ?? 0, trigger: m.trigger ?? '' };
+      compactions.push(open);
       continue;
     }
     const m = e.message;
@@ -53,6 +56,8 @@ function summarize(file, id, project, tasks) {
     cost.output += u.output_tokens || 0;
     if (cc) { cost.write1h += cc.ephemeral_1h_input_tokens || 0; cost.write5m += cc.ephemeral_5m_input_tokens || 0; }
     else cost.write5m += u.cache_creation_input_tokens || 0;
+    // The first call after a compaction writes the new context: summary plus re-attached files.
+    if (open) { open.write = u.cache_creation_input_tokens || 0; open = null; }
     ctx.push((u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0));
   }
   const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
@@ -78,10 +83,10 @@ export function run({ verbose = false } = {}) {
         const file = join(dir, name);
         const size = statSync(file).size;
         const id = name.slice(0, -6);
-        if (old.get(id)?.size === size) continue;
+        if (old.get(id)?.size === size && old.get(id)?.v === VERSION) continue;
         const r = summarize(file, id, project, tasks);
         if (!r.ctx.length) continue;
-        old.set(id, { ...r, size });
+        old.set(id, { ...r, size, v: VERSION });
         changed++;
       }
     }
