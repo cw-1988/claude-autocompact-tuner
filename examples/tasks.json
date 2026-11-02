@@ -1,0 +1,7 @@
+[
+  { "type": "frontend", "match": "\\.(tsx?|jsx?|css|html)\\b" },
+  { "type": "backend", "match": "\\.(go|rs|py|java|cs)\\b" },
+  { "type": "docs", "match": "\\.md\\b|docs[\\\\/]" },
+  { "type": "infra", "match": "docker|terraform|kubectl|\\.ya?ml\\b" },
+  { "type": "research", "match": "^https?://" }
+]
