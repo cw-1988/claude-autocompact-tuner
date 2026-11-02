@@ -120,7 +120,7 @@ if (auto) {
   if (b.w === current.w || gain < MIN_GAIN) process.exit(0);
   applyWindow(b.w);
   // SessionStart output reaches the session, so Claude can mention the change.
-  console.log(`compact-tuner: autocompact window set from ${Math.round(current.w / 1000)}k to ${b.w / 1000}k for new sessions (about ${(100 * gain).toFixed(1)}% cheaper over the last ${DATA_DAYS} days).`);
+  console.log(`autocompact-tuner: autocompact window set from ${Math.round(current.w / 1000)}k to ${b.w / 1000}k for new sessions (about ${(100 * gain).toFixed(1)}% cheaper over the last ${DATA_DAYS} days).`);
   process.exit(0);
 }
 

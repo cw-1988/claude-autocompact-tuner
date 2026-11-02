@@ -1,4 +1,4 @@
-# claude-compact-tuner
+# claude-autocompact-tuner
 
 Finds the cheapest auto-compact window for **your** Claude Code sessions and keeps it set.
 
@@ -13,7 +13,7 @@ Zero dependencies, Node 22 or later, reads only local files.
 ## What it does
 
 1. **`summarize.mjs`** condenses every transcript under `~/.claude/projects/` into one line per session (about 1 KB)
-   in `~/.claude/compact-tuner/sessions.jsonl`. The line holds the context size of every API call, the compactions
+   in `~/.claude/autocompact-tuner/sessions.jsonl`. The line holds the context size of every API call, the compactions
    (size before and after), the billed tokens, and the task type. Claude Code deletes transcripts after 30 days
    (`cleanupPeriodDays`), but this history stays.
 2. **`window.mjs`** replays each session at windows from 100k to 400k and prices it:
@@ -49,9 +49,9 @@ Long sessions gain the most; short ones barely compact at all.
 ## Install
 
 ```bash
-git clone https://github.com/cw-1988/claude-compact-tuner ~/claude-compact-tuner
-node ~/claude-compact-tuner/src/summarize.mjs --verbose
-node ~/claude-compact-tuner/src/window.mjs
+git clone https://github.com/cw-1988/claude-autocompact-tuner ~/claude-autocompact-tuner
+node ~/claude-autocompact-tuner/src/summarize.mjs --verbose
+node ~/claude-autocompact-tuner/src/window.mjs
 ```
 
 To keep it running, add the hook to `~/.claude/settings.json`, using your own path:
@@ -62,7 +62,7 @@ To keep it running, add the hook to `~/.claude/settings.json`, using your own pa
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"/home/you/claude-compact-tuner/src/window.mjs\" --auto", "timeout": 120 }
+          { "type": "command", "command": "node \"/home/you/claude-autocompact-tuner/src/window.mjs\" --auto", "timeout": 120 }
         ]
       }
     ]
@@ -80,11 +80,11 @@ node src/window.mjs --project my-app        only projects whose folder name cont
 ```
 
 **Task types**: by default every session is `other`. To split the table, put rules in
-`~/.claude/compact-tuner/tasks.json`. A session gets the type most of its tool calls match (file paths, commands,
+`~/.claude/autocompact-tuner/tasks.json`. A session gets the type most of its tool calls match (file paths, commands,
 URLs). Delete `sessions.jsonl` after changing the rules so every session is typed again. See
 [examples/tasks.json](examples/tasks.json).
 
-**Paths**: `CLAUDE_CONFIG_DIR` is respected. `COMPACT_TUNER_DIR` moves the data folder.
+**Paths**: `CLAUDE_CONFIG_DIR` is respected. `AUTOCOMPACT_TUNER_DIR` moves the data folder.
 
 **Limits** for `--auto` are constants at the top of `src/window.mjs`: check every 7 days, judge on 30 days of data,
 need 40 sessions and 10 compactions, and change only for at least a 1% gain. It never touches the window when

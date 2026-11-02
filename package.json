@@ -1,13 +1,13 @@
 {
-  "name": "claude-compact-tuner",
+  "name": "claude-autocompact-tuner",
   "version": "0.1.0",
   "description": "Finds the cheapest Claude Code auto-compact window from your own session transcripts and keeps it set.",
   "type": "module",
   "license": "MIT",
   "engines": { "node": ">=22" },
   "bin": {
-    "compact-tuner": "src/window.mjs",
-    "compact-tuner-summarize": "src/summarize.mjs"
+    "autocompact-tuner": "src/window.mjs",
+    "autocompact-tuner-summarize": "src/summarize.mjs"
   },
   "scripts": {
     "summarize": "node src/summarize.mjs --verbose",
