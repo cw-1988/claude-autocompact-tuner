@@ -18,7 +18,8 @@ Zero dependencies, Node 22 or later, reads only local files.
    deletes transcripts after 30 days (`cleanupPeriodDays`), but this history stays.
 2. **`window.mjs`** replays each session at windows from 100k to 400k and prices it:
    - every call reads its context from cache (0.1×)
-   - a compaction fires a margin below the window, as Claude Code does (a 250k window compacts at about 218k)
+   - a compaction fires a margin below the window, as Claude Code does (a 250k window compacts at about 218k;
+     `/context` shows this margin as the "Autocompact buffer")
    - every compaction reads the context once for the summary call, writes the summary as output (5×), has the next
      call write the new context to cache (summary plus the files Claude Code re-attaches), and adds the extra context
      Claude re-reads afterwards (written, then read on every call)
@@ -37,18 +38,21 @@ in the bill the savings are a share of.
 ## Example output
 
 ```
-332 sessions; 284 compactions
-per compaction: summary ~18k, context after ~87k, re-read afterwards ~5k
-current window 250k from settings.json (modelSettings)
+411 sessions; 286 compactions
+per compaction: summary ~17k, written after ~32k, context after ~86k, re-read afterwards ~5k
+compacts ~32k below the window (measured from 250 compactions)
+current window 200k from settings.json (modelSettings)
 
-task        sessions  calls/session  growth/call   best  saves   140k   160k   200k
-code             135             42          3k   180k   3.2%   0.3%   2.5%   2.1%
-art               56            233          2k   160k   9.0%   8.0%   9.0%   6.4%
-story             24             32          1k   150k   0.1%  -0.2%  -0.7%   0.0%
-ALL              332             82          2k   170k   6.1%   4.6%   5.9%   4.2%
+task        sessions  calls/session  growth/call   best  saves   140k   160k   200k   (share of that group's bill)
+code             163             37          3k   210k   0.2% -37.4% -10.5%   0.0%
+art               59            224          2k   200k   0.0% -32.6%  -7.6%   0.0%
+story             24             32          1k   210k   1.1% -20.8%  -5.5%   0.0%
+ALL              411             72          2k   200k   0.0% -33.2%  -8.2%   0.0%
 ```
 
-Long sessions gain the most; short ones barely compact at all.
+Every percentage compares a window with the current one, as a share of that group's bill. Negative means that
+window costs more. Here `--auto` had already set the best window, so the small windows show how much they would
+cost.
 
 ## Install
 
@@ -88,7 +92,12 @@ node src/window.mjs --project my-app        only projects whose folder name cont
 URLs). Delete `sessions.jsonl` after changing the rules so every session is typed again. See
 [examples/tasks.json](examples/tasks.json).
 
-**Paths**: `CLAUDE_CONFIG_DIR` is respected. `AUTOCOMPACT_TUNER_DIR` moves the data folder.
+**Paths**: `CLAUDE_CONFIG_DIR` is respected. `AUTOCOMPACT_TUNER_DIR` moves the data folder (`sessions.jsonl` and
+`state.json`).
+
+**Window history**: `state.json` records each window with the time the tool first saw it. If you change the window by
+hand, the next run records it, so sessions started in between count against the old window when the margin is
+measured. The median keeps a few of those from moving it.
 
 **Limits** for `--auto` are constants at the top of `src/window.mjs`: check every 7 days, judge on 30 days of data,
 need 40 sessions and 10 compactions, and change only for at least a 1% gain. It never touches the window when
@@ -101,11 +110,11 @@ need 40 sessions and 10 compactions, and change only for at least a 1% gain. It 
 - **Cold caches**: after an idle gap longer than the cache TTL, the next call writes the whole context again. That
   costs more with a bigger window, so leaving it out favours bigger windows. The session lines don't keep per-call
   times, so it can't be replayed yet.
-- **Summary size per window**: the summary and the context after a compaction are measured at your current window
-  and assumed the same at every other one.
+- **Summary size per window**: the summary, the write after a compaction and the context after it are averaged over
+  all your compactions and assumed the same at every window. A bigger window may produce a longer summary.
 - **Subagents** have their own context and are left out.
 - **Per-task windows**: Claude Code reads the window only at session start, so it can't follow the task inside a
-  session. In our data every task type's best window was within 30k of the overall one.
+  session. In our data every task type's best window was within 20k of the overall one.
 
 ## License
 
