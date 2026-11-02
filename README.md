@@ -49,7 +49,7 @@ Long sessions gain the most; short ones barely compact at all.
 ## Install
 
 ```bash
-git clone <this repo> ~/claude-compact-tuner
+git clone https://github.com/cw-1988/claude-compact-tuner ~/claude-compact-tuner
 node ~/claude-compact-tuner/src/summarize.mjs --verbose
 node ~/claude-compact-tuner/src/window.mjs
 ```
